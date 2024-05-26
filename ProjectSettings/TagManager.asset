@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 2
   tags:
   - Ladder
+  - Spikes
+  - Key
+  - Final
   layers:
   - Default
   - TransparentFX

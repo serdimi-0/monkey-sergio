@@ -16,6 +16,9 @@ public class ChatacterAnimatorScript : MonoBehaviour
     public float climbingSpeed = 5;
     public Transform rightHand;
     public GameObject bananaPrefab;
+    public AudioClip jumpSound;
+    public AudioClip landSound;
+    public AudioClip hitSound;
 
     public Transform leftFoot, rightFoot, headTop;
     private BoxCollider boxCollider;
@@ -23,6 +26,15 @@ public class ChatacterAnimatorScript : MonoBehaviour
     private LayerMask groundMask;
     private LayerMask ladderBottomMask;
     private LayerMask ladderTopMask;
+
+    private bool isInSpikes = false;
+    private Coroutine spikesCoroutine;
+    public float damageInterval = 1f;
+    private GameControllerScript gameController;
+
+    private AudioSource audioSource;
+    private bool lastGrounded = true;
+    private bool final = false;
 
     // Start is called before the first frame update
     void Start()
@@ -32,18 +44,25 @@ public class ChatacterAnimatorScript : MonoBehaviour
         groundMask = LayerMask.GetMask("Ground");
         ladderBottomMask = LayerMask.GetMask("LadderBottom");
         ladderTopMask = LayerMask.GetMask("LadderTop");
+        gameController = GameObject.Find("GameController").GetComponent<GameControllerScript>();
+        audioSource = GetComponent<AudioSource>();
     }
 
     // Update is called once per frame
     void Update()
     {
 
+        if (animator.GetBool("isDead") || final)
+        {
+            return;
+        }
+
         if (animator.GetCurrentAnimatorStateInfo(0).IsName("Climbing"))
         {
             modelTransform.rotation = Quaternion.Euler(0, 0, 0);
             /*rb.velocity = new Vector3(Input.GetAxis("Horizontal") * climbingSpeed * 0, Input.GetAxis("Vertical") * climbingSpeed, 0);*/
             rb.position += Vector3.up * Input.GetAxis("Vertical") * climbingSpeed * Time.deltaTime;
-            animator.SetFloat("climbing_y", Math.Abs(Input.GetAxis("Vertical")) + Math.Abs(Input.GetAxis("Horizontal")) + 0.001f);
+            animator.SetFloat("climbing_y", Input.GetAxis("Vertical"));
 
             LayerMask target = Input.GetAxis("Vertical") > 0 ? ladderTopMask : ladderBottomMask;
 
@@ -68,6 +87,10 @@ public class ChatacterAnimatorScript : MonoBehaviour
 
             // Gestion salto
             bool isJumping = Input.GetButtonDown("Jump");
+            if (isJumping && animator.GetBool("isGrounded"))
+            {
+                audioSource.PlayOneShot(jumpSound);
+            }
             animator.SetBool("isJumping", isJumping);
 
             animator.SetFloat("yVelocity", rb.velocity.y);
@@ -97,8 +120,13 @@ public class ChatacterAnimatorScript : MonoBehaviour
             rb.velocity = new Vector3((isRunning ? runningSpeed : speed) * x, rb.velocity.y, 0);
 
             // Comprobar si el personaje está en el suelo
-            bool isGrounded = Physics.CheckSphere(rightFoot.position, 1f, groundMask) || Physics.CheckSphere(leftFoot.position, 1f, groundMask);
-            //Debug.Log(isGrounded);
+            bool isGrounded = Physics.CheckSphere(rightFoot.position, .8f, groundMask) || Physics.CheckSphere(leftFoot.position, .8f, groundMask);
+            if (isGrounded && !lastGrounded)
+            {
+                audioSource.PlayOneShot(landSound);
+            }
+            lastGrounded = isGrounded;
+
             animator.SetBool("isGrounded", isGrounded);
 
             // Actualizacion box collider segun la posicion de la cabeza y de los pies
@@ -129,15 +157,43 @@ public class ChatacterAnimatorScript : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        CheckTriggers(other, true);
+        CheckLadderTriggers(other, true);
+        if (other.CompareTag("Spikes"))
+        {
+            isInSpikes = true;
+            if (spikesCoroutine == null)
+            {
+                spikesCoroutine = StartCoroutine(ApplyDamageOverTime());
+            }
+        }
+        else if (other.CompareTag("Key"))
+        {
+            gameController.AddKey();
+            Destroy(other.gameObject);
+        }
+        else if (other.CompareTag("Final"))
+        {
+            final = true;
+            animator.SetTrigger("hasWon");
+            gameController.Final();
+        }
     }
 
     private void OnTriggerExit(Collider other)
     {
-        CheckTriggers(other, false);
+        CheckLadderTriggers(other, false);
+        if (other.CompareTag("Spikes"))
+        {
+            isInSpikes = false;
+            if (spikesCoroutine != null)
+            {
+                StopCoroutine(spikesCoroutine);
+                spikesCoroutine = null;
+            }
+        }
     }
 
-    private void CheckTriggers(Collider other, bool active)
+    private void CheckLadderTriggers(Collider other, bool active)
     {
         if (other.CompareTag("Ladder"))
         {
@@ -153,6 +209,17 @@ public class ChatacterAnimatorScript : MonoBehaviour
             {
                 IsBottomLadder = active;
             }
+        }
+    }
+
+    private IEnumerator ApplyDamageOverTime()
+    {
+        while (isInSpikes)
+        {
+            animator.SetTrigger("Hitted");
+            audioSource.PlayOneShot(hitSound);
+            gameController.TakeDamage(10);
+            yield return new WaitForSeconds(damageInterval);
         }
     }
 }

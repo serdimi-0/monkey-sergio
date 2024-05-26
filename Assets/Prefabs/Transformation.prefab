@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 1898210843557491151}
   - component: {fileID: 1824088666760055372}
   - component: {fileID: 8726532647946149456}
+  - component: {fileID: -4957362693370035781}
   m_Layer: 0
   m_Name: Transformation
   m_TagString: Untagged
@@ -98,6 +99,14 @@ MonoBehaviour:
   animator: {fileID: 3833983267373514148}
   modelTransform: {fileID: 5986083940813010546}
   speed: 5
+--- !u!81 &-4957362693370035781
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3209214717559485860}
+  m_Enabled: 1
 --- !u!1001 &6095743993686593945
 PrefabInstance:
   m_ObjectHideFlags: 0
